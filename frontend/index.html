@@ -1,3132 +1,1029 @@
-<!DOCTYPE html>
-
+ <!DOCTYPE html>
 <html lang="zh-CN">
-
-
 <head>
-
-
 <meta charset="UTF-8">
-
-
-<meta name="viewport"
-content="initial-scale=1.0,
-user-scalable=no,
-width=device-width">
-
-
-<title>
-老人GPS定位监护系统
-</title>
-
-
-
-<!--
-==================================================
-
-页面基础样式
-
-功能：
-
-1. 设置地图全屏显示
-2. 设置定位信息窗口样式
-3. 设置历史查询面板样式
-
-==================================================
--->
-
-
+<meta name="viewport" content="initial-scale=1.0, user-scalable=no, width=device-width">
+<title>老人GPS定位监护系统</title>
 <style>
-
-
-/* ===============================
-   页面基础布局
-   =============================== */
-
-
-html,
-body,
-#container{
-
-
-    width:100%;
-
-
-    height:100%;
-
-
-    margin:0;
-
-
-    padding:0;
-
-
-}
-
-
-
-/* ===============================
-   实时定位信息窗口
-
-   显示：
-
-   - 老人当前位置
-   - 当前经纬度
-   - 功能按钮
-
-   =============================== */
-
+html,body,#container{width:100%;height:100%;margin:0;padding:0;}
+body{font-family:"Microsoft YaHei",Arial,sans-serif;overflow:hidden;}
 
 .location-info{
-
-
-    position:absolute;
-
-
-    top:20px;
-
-
-    left:20px;
-
-
-    z-index:999;
-
-
-    background:white;
-
-
-    padding:14px 18px;
-
-
-    border-radius:10px;
-
-
-    box-shadow:
-
-    0 2px 10px
-
-    rgba(0,0,0,0.25);
-
-
-    font-size:16px;
-
-
+    position:absolute;top:20px;left:20px;z-index:999;
+    background:white;padding:14px 18px;border-radius:10px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.25);font-size:16px;
+    min-width:280px;
 }
-
-
-
-.location-info strong{
-
-
-    font-size:22px;
-
-
-}
-
-
-
-
-/* ===============================
-   地图功能按钮
-
-   功能：
-
-   今日轨迹
-
-   历史查询
-
-   返回实时定位
-
-   =============================== */
-
+.location-info strong{font-size:22px;}
 
 .map-button{
-
-
-    margin-top:10px;
-
-
-    padding:8px 14px;
-
-
-    border:none;
-
-
-    border-radius:6px;
-
-
-    background:#1677ff;
-
-
-    color:white;
-
-
-    cursor:pointer;
-
-
-    font-size:15px;
-
-
+    margin-top:10px;padding:8px 14px;border:none;border-radius:6px;
+    background:#1677ff;color:white;cursor:pointer;font-size:15px;
 }
+.map-button:hover{background:#0958d9;}
+.map-button + .map-button{margin-left:5px;}
 
-
-
-.map-button:hover{
-
-
-    background:#0958d9;
-
-
+.history-panel,.today-query-panel{
+    position:absolute;top:270px;left:20px;z-index:998;width:300px;
+    background:white;padding:15px;border-radius:10px;
+    box-shadow:0 2px 10px rgba(0,0,0,0.25);display:none;
 }
-
-
-
-.map-button + .map-button{
-
-
-    margin-left:5px;
-
-
+.history-panel select,.history-panel input,.today-query-panel input{
+    width:260px;height:34px;margin-top:8px;font-size:15px;box-sizing:border-box;
 }
+.history-title{font-size:20px;font-weight:bold;}
+.panel-subtitle{margin-top:6px;color:#666;font-size:13px;line-height:20px;}
+.time-row{margin-top:8px;}
+.time-row label{display:block;font-size:14px;margin-bottom:2px;color:#333;}
+.gps-status,.gps-time,.mode-status{margin-top:8px;font-size:13px;color:#666;}
 
-
-
-
-/* ===============================
-   历史查询面板
-
-   默认隐藏
-
-   点击历史轨迹按钮显示
-
-   =============================== */
-
-
-.history-panel{
-
-
-    position:absolute;
-
-
-    top:230px;
-
-
-    left:20px;
-
-
-    z-index:998;
-
-
-    width:260px;
-
-
-    background:white;
-
-
-    padding:15px;
-
-
-    border-radius:10px;
-
-
-    box-shadow:
-
-    0 2px 10px
-
-    rgba(0,0,0,0.25);
-
-
-    display:none;
-
-
+@media (max-width:700px){
+    .location-info{left:10px;right:10px;top:10px;min-width:0;}
+    .history-panel,.today-query-panel{left:10px;right:10px;top:285px;width:auto;}
+    .history-panel select,.history-panel input,.today-query-panel input{width:100%;}
 }
-
-
-
-
-.history-panel select,
-
-.history-panel input{
-
-
-    width:220px;
-
-
-    height:32px;
-
-
-    margin-top:8px;
-
-
-    font-size:15px;
-
-
-}
-
-
-
-
-.history-title{
-
-
-    font-size:20px;
-
-
-    font-weight:bold;
-
-
-}
-
-
-
 </style>
-
-
 </head>
-
-
-
-
 <body>
-
-
-
-<!--
-==================================================
-
-高德地图显示容器
-
-所有地图内容将在此区域渲染
-
-==================================================
--->
-
-
 <div id="container"></div>
 
-
-
-
-<!--
-==================================================
-
-实时定位信息区域
-
-功能：
-
-显示：
-
-- 当前老人位置
-- 当前经纬度
-
-按钮：
-
-- 今日轨迹
-- 历史轨迹
-- 返回实时
-
-==================================================
--->
-
-
 <div class="location-info">
+    <strong>老人当前位置</strong>
+    <br>
+    GPS经度（WGS84）：<span id="longitude">正在获取...</span>
+    <br>
+    GPS纬度（WGS84）：<span id="latitude">正在获取...</span>
+    <div id="gpsTime" class="gps-time">GPS时间：正在获取...</div>
+    <div id="gpsStatus" class="gps-status">定位状态：正在获取</div>
 
-
-<strong>
-老人当前位置
-</strong>
-
-
-<br>
-
-
-经度：
-
-<span id="longitude">
-正在获取...
-</span>
-
-
-<br>
-
-
-纬度：
-
-<span id="latitude">
-正在获取...
-</span>
-
-
-<br>
-
-
-
-
-<button
-
-id="todayTrackButton"
-
-class="map-button"
-
->
-
-查看今日轨迹
-
-</button>
-
-
-
-
-<button
-
-id="historyButton"
-
-class="map-button"
-
->
-
-查看历史轨迹
-
-</button>
-
-
-
-
-<button
-
-id="realtimeButton"
-
-class="map-button"
-
->
-
-返回实时定位
-
-</button>
-
-
-
+    <button id="todayTrackButton" class="map-button">查看今日轨迹</button>
+    <button id="historyButton" class="map-button">查看历史轨迹</button>
+    <button id="realtimeButton" class="map-button">返回实时定位</button>
+    <div id="modeStatus" class="mode-status">当前模式：实时定位</div>
 </div>
 
+<!-- 历史轨迹查询 -->
+<div id="historyPanel" class="history-panel">
+    <div class="history-title">历史轨迹查询</div>
+    <div class="panel-subtitle">快捷日期为昨天至5天前。选择自定义日期后才显示日历。时间统一按北京时间查询。</div>
 
+    <select id="historyDateSelect">
+        <option value="">请选择历史日期</option>
+    </select>
 
+    <div id="customDateWrap" style="display:none;">
+        <input type="date" id="customDate">
+    </div>
 
+    <div class="time-row">
+        <label for="historyTimeMode">时间查询</label>
+        <select id="historyTimeMode">
+            <option value="">不指定时间（显示全天轨迹）</option>
+            <option value="time">选择具体时刻（精确到时分秒）</option>
+        </select>
+    </div>
 
-<!--
-==================================================
+    <div id="historyTimeWrap" style="display:none;">
+        <input type="time" id="historyTime" step="1">
+    </div>
 
-历史轨迹查询面板
-
-
-功能：
-
-1. 快速选择最近5天
-2. 自定义日期
-3. 指定时间查询GPS点
-
-
-==================================================
--->
-
-
-<div
-
-id="historyPanel"
-
-class="history-panel"
-
->
-
-
-
-<div class="history-title">
-
-
-历史轨迹查询
-
-
+    <br>
+    <button id="queryHistoryButton" class="map-button">查询历史轨迹</button>
 </div>
 
-
-
-
-<select
-
-id="historyDateSelect"
-
->
-
-</select>
-
-
-
-
-<br>
-
-
-
-<input
-
-type="date"
-
-id="customDate"
-
->
-
-
-
-
-<br>
-
-
-
-<input
-
-type="time"
-
-id="historyTime"
-
-step="1"
-
->
-
-
-
-
-<br>
-
-
-
-
-<button
-
-id="queryHistoryButton"
-
-class="map-button"
-
->
-
-
-查询
-
-
-</button>
-
-
-
-
+<!-- 今日轨迹时间查询 -->
+<div id="todayQueryPanel" class="today-query-panel">
+    <div class="history-title">今日时间查询</div>
+    <div class="panel-subtitle">选择今天的具体时刻，查询该时刻前后5分钟内最近的GPS记录；未查询时默认显示完整今日轨迹。时间统一按北京时间。</div>
+    <input type="time" id="todayTime" step="1">
+    <br>
+    <button id="queryTodayButton" class="map-button">查询今天时刻</button>
 </div>
-
-
-
-
-
-
-<!--
-==================================================
-
-高德地图安全配置
-
-
-公开仓库中不保存真实Key
-
-
-运行时替换：
-
-YOUR_SECURITY_CODE
-
-
-==================================================
--->
-
 
 <script>
-
-
 window._AMapSecurityConfig={
-
-
-    securityJsCode:
-
-
-    "YOUR_SECURITY_CODE"
-
-
+    securityJsCode:"YOUR_AMAP_SECURITY_CODE"
 };
-
-
-
 </script>
-
-
-
-
-
-<!--
-==================================================
-
-高德地图Loader
-
-
-加载高德地图 JavaScript API
-
-==================================================
--->
-
-
-<script
-
-src="https://webapi.amap.com/loader.js">
-
-</script>
-
-
-
-
-
-
-
+<script src="https://webapi.amap.com/loader.js"></script>
 <script>
+/* =====================================================
+   老人GPS定位监护系统 - 前端最终整理版
 
+   项目结构：
+   GPS/
+   ├── backend/
+   │   └── main.py
+   └── frontend/
+       └── index.html   ← 本文件
 
-/*
-==================================================
+   浏览器统一访问 FastAPI：
+   本机：    http://127.0.0.1:8000/
+   局域网：  http://电脑当前局域网IP:8000/
 
-全局变量区域
+   前端 API 全部使用相对地址：
+   /location
+   /locations/today
+   /locations/history/date
+   /locations/nearest
 
+   数据语义：
+   longitude / latitude = GPS 原始 WGS84 坐标
+   gps_time             = GPS 实际定位时间（后端已转北京时间）
+   received_at          = 服务器实际收到数据的时间
 
-保存：
+   地图显示：
+   MySQL / API 保留 WGS84 原始坐标
+   前端绘制高德地图前统一转换为 GCJ-02
+   ===================================================== */
 
-1. 地图对象
+/* =====================================================
+   基础配置
+   ===================================================== */
 
-2. Marker对象
+const DEVICE_ID="elder001";
+const RELOCATE_DISTANCE=5000;
+const REALTIME_REFRESH_INTERVAL=2000;
 
-3. 当前定位数据
-
-4. 历史轨迹对象
-
-
-==================================================
-*/
-
-
-// 高德地图API对象
+// 没有任何 GPS 数据时，仅用于让地图能正常初始化。
+const DEFAULT_MAP_CENTER=[116.397428,39.90923];
 
 let AMap=null;
-
-
-// 地图实例
-
 let map=null;
-
-
-// 实时老人Marker
-
 let marker=null;
 
-
-
-// 最新经纬度
-
+// 以下经纬度始终保存后端返回的 GPS 原始 WGS84 坐标。
 let latestLongitude=null;
-
-
 let latestLatitude=null;
-
-
-
-
-// 上一次位置
-
-// 用于判断是否需要地图重新定位
-
 let lastLongitude=null;
-
-
 let lastLatitude=null;
 
-
-
-
-// 移动超过5公里
-
-// 自动调整地图中心
-
-const RELOCATE_DISTANCE=5000;
-
-
-
-
-
-/*
-==================================================
-
-历史轨迹相关对象
-
-
-historyPolyline:
-
-历史轨迹线
-
-
-historyStartMarker:
-
-起点
-
-
-historyEndMarker:
-
-终点
-
-
-historyQueryMarker:
-
-时间查询点
-
-
-==================================================
-*/
-
-
 let historyPolyline=null;
-
-
 let historyStartMarker=null;
-
-
 let historyEndMarker=null;
-
-
 let historyQueryMarker=null;
-
-
-
-
-// 查询点信息窗口
-
 let queryInfoWindow=null;
 
-
-
-
-// 当前模式
-
-// false:
-
-// 实时定位
-
-
-// true:
-
-// 历史轨迹
-
-
-let historyMode=false;
-
-
-
-// 当前查询日期
-
+/* 页面模式：
+   realtime = 实时定位
+   today    = 今日轨迹
+   history  = 历史轨迹
+*/
+let currentMode="realtime";
 let currentHistoryDate=null;
 
-
-
-
-
-
-/*
-==================================================
-
-Marker样式定义
-
-
-蓝色：
-
-实时老人位置
-
-
-绿色：
-
-轨迹起点
-
-
-红色：
-
-轨迹终点
-
-
-橙色：
-
-时间查询点
-
-
-==================================================
-*/
-
+/* =====================================================
+   Marker 样式
+   ===================================================== */
 
 const realtimeMarkerContent=`
-
-
 <div style="
-
-width:42px;
-
-height:42px;
-
-background:#1677ff;
-
-border:4px solid white;
-
-border-radius:50% 50% 50% 0;
-
-transform:rotate(-45deg);
-
-box-shadow:0 2px 8px rgba(0,0,0,0.35);
-
-display:flex;
-
-align-items:center;
-
-justify-content:center;
-
-
+    width:42px;height:42px;background:#1677ff;
+    border:4px solid white;border-radius:50% 50% 50% 0;
+    transform:rotate(-45deg);box-shadow:0 2px 8px rgba(0,0,0,0.35);
+    display:flex;align-items:center;justify-content:center;
 ">
-
-
-<div style="
-
-width:12px;
-
-height:12px;
-
-background:white;
-
-border-radius:50%;
-
-
-">
-
-
+    <div style="width:12px;height:12px;background:white;border-radius:50%;"></div>
 </div>
-
-
-</div>
-
-
 `;
-
-
 
 const startMarkerContent=`
-
-
 <div style="
-
-width:34px;
-
-height:34px;
-
-background:#22a06b;
-
-border-radius:50%;
-
-border:3px solid white;
-
-color:white;
-
-font-weight:bold;
-
-display:flex;
-
-align-items:center;
-
-justify-content:center;
-
-
-">
-
-
-起
-
-
-</div>
-
-
+    width:34px;height:34px;background:#22a06b;border-radius:50%;
+    border:3px solid white;color:white;font-weight:bold;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 2px 6px rgba(0,0,0,0.3);
+">起</div>
 `;
-
-
 
 const endMarkerContent=`
-
-
 <div style="
-
-width:34px;
-
-height:34px;
-
-background:#e5484d;
-
-border-radius:50%;
-
-border:3px solid white;
-
-color:white;
-
-font-weight:bold;
-
-display:flex;
-
-align-items:center;
-
-justify-content:center;
-
-
-">
-
-
-终
-
-
-</div>
-
-
+    width:34px;height:34px;background:#e5484d;border-radius:50%;
+    border:3px solid white;color:white;font-weight:bold;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 2px 6px rgba(0,0,0,0.3);
+">终</div>
 `;
-
-
 
 const queryMarkerContent=`
-
-
 <div style="
-
-width:34px;
-
-height:34px;
-
-background:#fa8c16;
-
-border-radius:50%;
-
-border:3px solid white;
-
-color:white;
-
-font-weight:bold;
-
-display:flex;
-
-align-items:center;
-
-justify-content:center;
-
-
-">
-
-
-时
-
-
-</div>
-
-
+    width:34px;height:34px;background:#fa8c16;border-radius:50%;
+    border:3px solid white;color:white;font-weight:bold;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 2px 6px rgba(0,0,0,0.3);
+">时</div>
 `;
 
-
-
-/*
-==================================================
-
-GPS距离计算
-
-
-采用：
-
-Haversine公式
-
-
-单位：
-
-米
-
-
-用途：
-
-判断位置移动距离
-
-
-==================================================
-*/
-
-
-function calculateDistance(
-
-lon1,
-
-lat1,
-
-lon2,
-
-lat2
-
-){
-
-
-const R=6371000;
-
-
-
-const radLat1=
-
-lat1*Math.PI/180;
-
-
-
-const radLat2=
-
-lat2*Math.PI/180;
-
-
-
-const dLat=
-
-(lat2-lat1)*Math.PI/180;
-
-
-
-const dLon=
-
-(lon2-lon1)*Math.PI/180;
-
-
-
-
-const a=
-
-
-Math.sin(dLat/2)**2
-
-
-+
-
-
-Math.cos(radLat1)
-
-
-*
-
-
-Math.cos(radLat2)
-
-
-*
-
-
-Math.sin(dLon/2)**2;
-
-
-
-const c=
-
-
-2*Math.atan2(
-
-Math.sqrt(a),
-
-Math.sqrt(1-a)
-
-);
-
-
-
-return R*c;
-
-
-
+/* =====================================================
+   通用工具函数
+   ===================================================== */
+
+function updateGpsStatus(text){
+    const el=document.getElementById("gpsStatus");
+    if(el)el.textContent="定位状态："+text;
 }
 
+function updateGpsTime(text){
+    const el=document.getElementById("gpsTime");
+    if(el)el.textContent="GPS时间："+(text || "暂无");
+}
 
+function updateModeStatus(text){
+    const el=document.getElementById("modeStatus");
+    if(el)el.textContent="当前模式："+text;
+}
 
+function showHistoryPanel(show){
+    const panel=document.getElementById("historyPanel");
+    if(panel)panel.style.display=show?"block":"none";
+}
 
-/*
-==================================================
+function showTodayQueryPanel(show){
+    const panel=document.getElementById("todayQueryPanel");
+    if(panel)panel.style.display=show?"block":"none";
+}
 
-实时定位接口
+function normalizeTimeString(value){
+    if(!value)return "";
 
+    // 某些浏览器的 <input type="time"> 即使 step=1，
+    // 用户未输入秒时仍可能得到 HH:MM。
+    if(/^\d{2}:\d{2}$/.test(value)){
+        return value+":00";
+    }
 
-对应后端：
+    return value;
+}
 
-GET /location
+/* =====================================================
+   北京时间日期工具
 
+   后端 gps_time 已统一为北京时间，因此：
+   “今天 / 昨天 / N天前”也统一按 UTC+8 计算，
+   不依赖浏览器或手机自身时区设置。
+   ===================================================== */
 
-返回：
+function getBeijingDate(offsetDays=0){
+    const now=Date.now();
+    const shifted=new Date(
+        now + 8*60*60*1000 - offsetDays*24*60*60*1000
+    );
+    return shifted.toISOString().slice(0,10);
+}
 
-最新GPS点
+function getDateValue(offsetDays){
+    return getBeijingDate(offsetDays);
+}
 
+function getTodayDateString(){
+    return getBeijingDate(0);
+}
 
-==================================================
-*/
+/* =====================================================
+   两点距离计算
+   使用 GPS 原始 WGS84 坐标计算即可。
+   ===================================================== */
 
+function calculateDistance(lon1,lat1,lon2,lat2){
+    const R=6371000;
+    const radLat1=lat1*Math.PI/180;
+    const radLat2=lat2*Math.PI/180;
+    const dLat=(lat2-lat1)*Math.PI/180;
+    const dLon=(lon2-lon1)*Math.PI/180;
+
+    const a=Math.sin(dLat/2)**2+
+        Math.cos(radLat1)*Math.cos(radLat2)*Math.sin(dLon/2)**2;
+
+    const c=2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+    return R*c;
+}
+
+/* =====================================================
+   WGS84 → GCJ-02
+
+   GPS/L80-R 输出 WGS84；高德地图采用 GCJ-02。
+   数据库保持 WGS84 不变，只在前端绘图前转换。
+   中国范围外直接返回原坐标。
+   ===================================================== */
+
+const GCJ_PI=Math.PI;
+const GCJ_A=6378245.0;
+const GCJ_EE=0.00669342162296594323;
+
+function outOfChina(lng,lat){
+    return lng<72.004 || lng>137.8347 || lat<0.8293 || lat>55.8271;
+}
+
+function transformLat(x,y){
+    let ret=-100.0+2.0*x+3.0*y+0.2*y*y+0.1*x*y+0.2*Math.sqrt(Math.abs(x));
+    ret+=(20.0*Math.sin(6.0*x*GCJ_PI)+20.0*Math.sin(2.0*x*GCJ_PI))*2.0/3.0;
+    ret+=(20.0*Math.sin(y*GCJ_PI)+40.0*Math.sin(y/3.0*GCJ_PI))*2.0/3.0;
+    ret+=(160.0*Math.sin(y/12.0*GCJ_PI)+320*Math.sin(y*GCJ_PI/30.0))*2.0/3.0;
+    return ret;
+}
+
+function transformLng(x,y){
+    let ret=300.0+x+2.0*y+0.1*x*x+0.1*x*y+0.1*Math.sqrt(Math.abs(x));
+    ret+=(20.0*Math.sin(6.0*x*GCJ_PI)+20.0*Math.sin(2.0*x*GCJ_PI))*2.0/3.0;
+    ret+=(20.0*Math.sin(x*GCJ_PI)+40.0*Math.sin(x/3.0*GCJ_PI))*2.0/3.0;
+    ret+=(150.0*Math.sin(x/12.0*GCJ_PI)+300.0*Math.sin(x/30.0*GCJ_PI))*2.0/3.0;
+    return ret;
+}
+
+function convertWGS84ToGCJ02(lng,lat){
+    lng=Number(lng);
+    lat=Number(lat);
+
+    if(!Number.isFinite(lng) || !Number.isFinite(lat)){
+        throw new Error("无效经纬度，无法进行坐标转换");
+    }
+
+    if(outOfChina(lng,lat)){
+        return [lng,lat];
+    }
+
+    let dLat=transformLat(lng-105.0,lat-35.0);
+    let dLng=transformLng(lng-105.0,lat-35.0);
+    const radLat=lat/180.0*GCJ_PI;
+    let magic=Math.sin(radLat);
+    magic=1-GCJ_EE*magic*magic;
+    const sqrtMagic=Math.sqrt(magic);
+
+    dLat=(dLat*180.0)/((GCJ_A*(1-GCJ_EE))/(magic*sqrtMagic)*GCJ_PI);
+    dLng=(dLng*180.0)/(GCJ_A/sqrtMagic*Math.cos(radLat)*GCJ_PI);
+
+    return [lng+dLng,lat+dLat];
+}
+
+function locationToMapPoint(location){
+    return convertWGS84ToGCJ02(
+        Number(location.longitude),
+        Number(location.latitude)
+    );
+}
+
+/* =====================================================
+   API
+
+   FastAPI 已托管 index.html，因此这里全部使用相对地址。
+   浏览器会自动请求“当前打开网页的同一台 FastAPI”。
+   ===================================================== */
+
+function buildApiUrl(path,params={}){
+    const search=new URLSearchParams({
+        device_id:DEVICE_ID,
+        ...params
+    });
+
+    return path+"?"+search.toString();
+}
+
+async function fetchJson(url,errorMessage){
+    const response=await fetch(url,{cache:"no-store"});
+
+    let data=null;
+    try{
+        data=await response.json();
+    }catch(error){
+        data=null;
+    }
+
+    if(!response.ok){
+        const detail=data && data.detail ? data.detail : errorMessage;
+        throw new Error(detail);
+    }
+
+    return data;
+}
 
 async function getLatestLocation(){
-
-
-const response = await fetch(
-
-
-"http://127.0.0.1:8000/location",
-
-
-{
-
-
-cache:"no-store"
-
-
+    return await fetchJson(
+        buildApiUrl("/location"),
+        "实时定位接口错误"
+    );
 }
-
-
-);
-
-
-
-if(!response.ok){
-
-
-throw new Error(
-
-"实时定位接口错误"
-
-);
-
-
-}
-
-
-
-return await response.json();
-
-
-
-}
-
 
 async function getTodayTrack(){
-
-
-const response = await fetch(
-
-
-"http://127.0.0.1:8000/locations/today",
-
-
-{
-
-
-cache:"no-store"
-
-
+    return await fetchJson(
+        buildApiUrl("/locations/today"),
+        "今日轨迹接口错误"
+    );
 }
-
-
-);
-
-
-
-if(!response.ok){
-
-
-throw new Error(
-
-"今日轨迹接口错误"
-
-);
-
-
-}
-
-
-
-return await response.json();
-
-
-}
-
-
-
-
-/*
-==================================================
-
-历史轨迹查询接口
-
-
-对应后端：
-
-GET /locations/history/date
-
-
-参数：
-
-date_str
-
-
-==================================================
-*/
-
 
 async function getHistoryByDate(date){
-
-
-const url =
-
-
-"http://127.0.0.1:8000/locations/history/date"
-
-+
-
-"?date_str="
-
-+
-
-encodeURIComponent(date);
-
-
-
-
-const response = await fetch(
-
-
-url,
-
-
-{
-
-
-cache:"no-store"
-
-
+    return await fetchJson(
+        buildApiUrl(
+            "/locations/history/date",
+            {date_str:date}
+        ),
+        "历史轨迹接口错误"
+    );
 }
 
-
-);
-
-
-
-if(!response.ok){
-
-
-throw new Error(
-
-"历史轨迹接口错误"
-
-);
-
-
+async function getNearestLocation(date,time){
+    return await fetchJson(
+        buildApiUrl(
+            "/locations/nearest",
+            {
+                date_str:date,
+                time_str:normalizeTimeString(time)
+            }
+        ),
+        "时间查询接口错误"
+    );
 }
 
-
-
-return await response.json();
-
-
-
-}
-
-
-
-
-
-
-/*
-==================================================
-
-指定时间附近GPS查询
-
-
-对应后端：
-
-GET /locations/nearest
-
-
-参数：
-
-date_str
-
-time_str
-
-
-功能：
-
-查询指定时间附近5分钟GPS点
-
-
-==================================================
-*/
-
-
-async function getNearestLocation(
-
-
-date,
-
-
-time
-
-
-){
-
-
-
-const url =
-
-
-"http://127.0.0.1:8000/locations/nearest"
-
-+
-
-"?date_str="
-
-+
-
-encodeURIComponent(date)
-
-+
-
-"&time_str="
-
-+
-
-encodeURIComponent(time);
-
-
-
-
-const response = await fetch(
-
-
-url,
-
-
-{
-
-
-cache:"no-store"
-
-
-}
-
-
-);
-
-
-
-if(!response.ok){
-
-
-throw new Error(
-
-"时间查询接口错误"
-
-);
-
-
-}
-
-
-
-return await response.json();
-
-
-
-}
-
-
-
-
-
-
-
-/*
-==================================================
-
-清除历史轨迹覆盖物
-
-
-删除：
-
-1. 轨迹线
-
-2. 起点Marker
-
-3. 终点Marker
-
-4. 时间查询Marker
-
-
-==================================================
-*/
-
-
-function clearHistory(){
-
-
-
-let overlays=[];
-
-
-
-if(historyPolyline){
-
-
-overlays.push(historyPolyline);
-
-
-}
-
-
-
-if(historyStartMarker){
-
-
-overlays.push(historyStartMarker);
-
-
-}
-
-
-
-if(historyEndMarker){
-
-
-overlays.push(historyEndMarker);
-
-
-}
-
-
-
-if(historyQueryMarker){
-
-
-overlays.push(historyQueryMarker);
-
-
-}
-
-
-
-
-if(overlays.length>0){
-
-
-map.remove(overlays);
-
-
-}
-
-
-
-
-historyPolyline=null;
-
-
-historyStartMarker=null;
-
-
-historyEndMarker=null;
-
-
-historyQueryMarker=null;
-
-
-
-
-if(queryInfoWindow){
-
-
-queryInfoWindow.close();
-
-
-}
-
-
-}
-
-
-
-
-
-
-
-
-/*
-==================================================
-
-创建历史日期列表
-
-
-默认：
-
-昨天
-
-前天
-
-3天前
-
-4天前
-
-5天前
-
-
-==================================================
-*/
-
+/* =====================================================
+   历史日期选择
+   ===================================================== */
 
 function createHistoryDateList(){
+    const select=document.getElementById("historyDateSelect");
+    select.innerHTML="";
 
+    const placeholder=document.createElement("option");
+    placeholder.value="";
+    placeholder.textContent="请选择历史日期";
+    select.appendChild(placeholder);
 
+    for(let i=1;i<=5;i++){
+        const option=document.createElement("option");
+        option.value=getDateValue(i);
+        option.textContent=(i===1?"昨天 ":i+"天前 ")+option.value;
+        select.appendChild(option);
+    }
 
-const select = document.getElementById(
+    const customOption=document.createElement("option");
+    customOption.value="__custom__";
+    customOption.textContent="自定义日期";
+    select.appendChild(customOption);
 
+    // 默认选中昨天，保留原有使用习惯。
+    select.selectedIndex=1;
 
-"historyDateSelect"
+    const customInput=document.getElementById("customDate");
+    customInput.max=getDateValue(1);
 
-
-);
-
-
-
-select.innerHTML="";
-
-
-
-const today = new Date();
-
-
-
-
-for(let i=1;i<=5;i++){
-
-
-
-let d=new Date();
-
-
-
-d.setDate(
-
-today.getDate()-i
-
-);
-
-
-
-let value =
-
-
-d.getFullYear()
-
-+
-
-"-"
-
-+
-
-String(
-
-d.getMonth()+1
-
-).padStart(2,"0")
-
-+
-
-"-"
-
-+
-
-String(
-
-d.getDate()
-
-).padStart(2,"0");
-
-
-
-
-let option=document.createElement(
-
-
-"option"
-
-
-);
-
-
-
-option.value=value;
-
-
-option.textContent=value;
-
-
-
-select.appendChild(option);
-
-
-
+    updateCustomDateVisibility();
 }
 
+function updateCustomDateVisibility(){
+    const select=document.getElementById("historyDateSelect");
+    const wrap=document.getElementById("customDateWrap");
+    const input=document.getElementById("customDate");
 
+    if(select.value==="__custom__"){
+        wrap.style.display="block";
+        input.max=getDateValue(1);
+        if(!input.value)input.value=getDateValue(1);
+    }else{
+        wrap.style.display="none";
+        input.value="";
+    }
 }
 
+function getSelectedHistoryDate(){
+    const select=document.getElementById("historyDateSelect");
 
+    if(select.value==="__custom__"){
+        return document.getElementById("customDate").value;
+    }
 
+    return select.value;
+}
 
+function updateHistoryTimeVisibility(){
+    const mode=document.getElementById("historyTimeMode").value;
+    const wrap=document.getElementById("historyTimeWrap");
+    wrap.style.display=(mode==="time")?"block":"none";
 
+    if(mode!=="time"){
+        document.getElementById("historyTime").value="";
+    }
+}
 
+/* =====================================================
+   覆盖物管理
+   ===================================================== */
 
-/*
-==================================================
+function clearQueryMarker(){
+    if(historyQueryMarker && map){
+        map.remove(historyQueryMarker);
+        historyQueryMarker=null;
+    }
 
-初始化地图
+    if(queryInfoWindow){
+        queryInfoWindow.close();
+        queryInfoWindow=null;
+    }
+}
 
+function clearHistory(){
+    const overlays=[];
 
-流程：
+    if(historyPolyline)overlays.push(historyPolyline);
+    if(historyStartMarker)overlays.push(historyStartMarker);
+    if(historyEndMarker)overlays.push(historyEndMarker);
+    if(historyQueryMarker)overlays.push(historyQueryMarker);
 
+    if(overlays.length>0 && map){
+        map.remove(overlays);
+    }
 
-1. 加载高德地图
+    historyPolyline=null;
+    historyStartMarker=null;
+    historyEndMarker=null;
+    historyQueryMarker=null;
 
-2. 获取最新GPS位置
+    if(queryInfoWindow){
+        queryInfoWindow.close();
+        queryInfoWindow=null;
+    }
+}
 
-3. 创建地图
+/* =====================================================
+   历史轨迹绘制：有红色终点
 
-4. 创建实时Marker
+   path 必须已经是 GCJ-02。
+   ===================================================== */
 
-5. 开启实时刷新
+function drawHistoryTrack(path){
+    historyPolyline=new AMap.Polyline({
+        path:path,
+        strokeColor:"#1677ff",
+        strokeWeight:6,
+        strokeOpacity:0.85,
+        lineJoin:"round",
+        lineCap:"round"
+    });
 
+    historyStartMarker=new AMap.Marker({
+        position:path[0],
+        content:startMarkerContent,
+        anchor:"center"
+    });
 
-==================================================
-*/
+    historyEndMarker=new AMap.Marker({
+        position:path[path.length-1],
+        content:endMarkerContent,
+        anchor:"center"
+    });
 
+    map.add([
+        historyPolyline,
+        historyStartMarker,
+        historyEndMarker
+    ]);
+
+    map.setFitView([
+        historyPolyline,
+        historyStartMarker,
+        historyEndMarker
+    ]);
+}
+
+/* =====================================================
+   今日轨迹绘制：无红色终点
+   同时保留深蓝色实时 Marker 作为当前点
+
+   path 必须已经是 GCJ-02。
+   ===================================================== */
+
+function drawTodayTrack(path){
+    historyPolyline=new AMap.Polyline({
+        path:path,
+        strokeColor:"#1677ff",
+        strokeWeight:6,
+        strokeOpacity:0.85,
+        lineJoin:"round",
+        lineCap:"round"
+    });
+
+    historyStartMarker=new AMap.Marker({
+        position:path[0],
+        content:startMarkerContent,
+        anchor:"center"
+    });
+
+    map.add([
+        historyPolyline,
+        historyStartMarker
+    ]);
+
+    if(latestLongitude!==null && latestLatitude!==null && marker){
+        marker.setPosition(
+            convertWGS84ToGCJ02(latestLongitude,latestLatitude)
+        );
+        marker.show();
+    }
+
+    map.setFitView([
+        historyPolyline,
+        historyStartMarker
+    ]);
+}
+
+/* =====================================================
+   初始化地图
+   ===================================================== */
 
 async function initMap(){
-
-
-try{
-
-
-
-AMap = await AMapLoader.load({
-
-
-
-key:
-
-
-"YOUR_AMAP_KEY",
-
-
-
-version:"2.0"
-
-
-
-});
-
-
-
-
-
-
-const data = await getLatestLocation();
-
-
-
-
-
-
-latestLongitude=data.longitude;
-
-
-latestLatitude=data.latitude;
-
-
-
-
-lastLongitude=latestLongitude;
-
-
-lastLatitude=latestLatitude;
-
-
-
-
-
-document.getElementById(
-
-
-"longitude"
-
-
-).textContent=latestLongitude;
-
-
-
-
-document.getElementById(
-
-
-"latitude"
-
-
-).textContent=latestLatitude;
-
-
-
-
-
-
-
-map=new AMap.Map(
-
-
-"container",
-
-
-{
-
-
-zoom:17,
-
-
-center:[
-
-
-latestLongitude,
-
-
-latestLatitude
-
-
-]
-
-
+    try{
+        AMap=await AMapLoader.load({
+            key:"YOUR_AMAP_KEY",
+            version:"2.0"
+        });
+
+        // 先创建地图，避免数据库暂无数据时整张网页无法显示。
+        map=new AMap.Map(
+            "container",
+            {
+                zoom:17,
+                center:DEFAULT_MAP_CENTER
+            }
+        );
+
+        createHistoryDateList();
+        updateHistoryTimeVisibility();
+
+        const data=await getLatestLocation();
+
+        if(!data || data.found===false){
+            document.getElementById("longitude").textContent="暂无";
+            document.getElementById("latitude").textContent="暂无";
+            updateGpsTime("");
+            updateGpsStatus("暂无GPS数据");
+            scheduleRealtimeUpdate();
+            return;
+        }
+
+        latestLongitude=Number(data.longitude);
+        latestLatitude=Number(data.latitude);
+        lastLongitude=latestLongitude;
+        lastLatitude=latestLatitude;
+
+        document.getElementById("longitude").textContent=latestLongitude;
+        document.getElementById("latitude").textContent=latestLatitude;
+        updateGpsTime(data.gps_time);
+        updateGpsStatus("正常");
+
+        const mapPoint=convertWGS84ToGCJ02(
+            latestLongitude,
+            latestLatitude
+        );
+
+        map.setZoomAndCenter(17,mapPoint);
+
+        marker=new AMap.Marker({
+            position:mapPoint,
+            content:realtimeMarkerContent,
+            anchor:"bottom-center"
+        });
+
+        map.add(marker);
+
+        scheduleRealtimeUpdate();
+        console.log("地图初始化完成");
+    }
+    catch(error){
+        console.error("地图初始化失败",error);
+        updateGpsStatus("无法获取："+error.message);
+    }
 }
 
-
-);
-
-
-
-
-
-
-
-marker=new AMap.Marker({
-
-
-
-position:[
-
-
-latestLongitude,
-
-
-latestLatitude
-
-
-],
-
-
-
-content:
-
-
-realtimeMarkerContent,
-
-
-
-anchor:
-
-
-"bottom-center"
-
-
-
-});
-
-
-
-
-
-map.add(marker);
-
-
-
-
-
-
-createHistoryDateList();
-
-
-
-
-
-scheduleRealtimeUpdate();
-
-
-
-
-
-console.log(
-
-
-"地图初始化完成"
-
-
-);
-
-
-
-}
-
-catch(error){
-
-
-
-console.error(
-
-
-"地图初始化失败",
-
-
-error
-
-
-);
-
-
-
-}
-
-
-}
-
-
-
-
-
-
-
-
-
-
-/*
-==================================================
-
-实时定位循环
-
-
-周期：
-
-2秒
-
-
-功能：
-
-持续获取最新GPS位置
-
-
-==================================================
-*/
-
+/* =====================================================
+   实时定位循环：2秒
+
+   后端返回 WGS84；Marker 设置位置前统一转 GCJ-02。
+   ===================================================== */
 
 function scheduleRealtimeUpdate(){
-
-
-
-setTimeout(
-
-
-async function(){
-
-
-
-await updateRealtimeLocation();
-
-
-
-scheduleRealtimeUpdate();
-
-
-
-},
-
-
-2000
-
-
-
-);
-
-
-
+    setTimeout(async function(){
+        await updateRealtimeLocation();
+        scheduleRealtimeUpdate();
+    },REALTIME_REFRESH_INTERVAL);
 }
-
-
-
-
-
-
-
-
-/*
-==================================================
-
-更新实时位置
-
-
-功能：
-
-
-1. 请求最新GPS
-
-2. 更新页面经纬度
-
-3. 更新Marker位置
-
-4. 判断是否移动超过5公里
-
-
-==================================================
-*/
-
 
 async function updateRealtimeLocation(){
+    try{
+        const data=await getLatestLocation();
 
+        if(!data || data.found===false){
+            updateGpsStatus("暂无GPS数据");
+            return;
+        }
 
+        const longitude=Number(data.longitude);
+        const latitude=Number(data.latitude);
 
-try{
+        if(!Number.isFinite(longitude) || !Number.isFinite(latitude)){
+            throw new Error("后端返回的经纬度无效");
+        }
 
+        latestLongitude=longitude;
+        latestLatitude=latitude;
 
+        document.getElementById("longitude").textContent=longitude;
+        document.getElementById("latitude").textContent=latitude;
+        updateGpsTime(data.gps_time);
+        updateGpsStatus("正常");
 
-const data = await getLatestLocation();
+        const mapPoint=convertWGS84ToGCJ02(longitude,latitude);
 
+        if(!marker){
+            marker=new AMap.Marker({
+                position:mapPoint,
+                content:realtimeMarkerContent,
+                anchor:"bottom-center"
+            });
+            map.add(marker);
+        }else{
+            marker.setPosition(mapPoint);
+        }
 
+        // 实时定位、今日轨迹都显示当前点；历史轨迹隐藏当前点。
+        if(currentMode==="realtime" || currentMode==="today"){
+            marker.show();
+        }else{
+            marker.hide();
+        }
 
+        const distance=(lastLongitude===null || lastLatitude===null)?0:
+            calculateDistance(
+                lastLongitude,
+                lastLatitude,
+                longitude,
+                latitude
+            );
 
-const longitude=data.longitude;
+        // 防止地图每2秒跟着微小GPS漂移移动。
+        // 只有实时模式且位置变化超过5公里时才重新居中。
+        if(currentMode==="realtime" && distance>=RELOCATE_DISTANCE){
+            map.setCenter(mapPoint);
+        }
 
-
-
-const latitude=data.latitude;
-
-
-
-
-
-latestLongitude=longitude;
-
-
-latestLatitude=latitude;
-
-
-
-
-
-
-
-document.getElementById(
-
-
-"longitude"
-
-
-).textContent=longitude;
-
-
-
-
-document.getElementById(
-
-
-"latitude"
-
-
-).textContent=latitude;
-
-
-
-
-
-
-if(marker){
-
-
-
-marker.setPosition([
-
-
-longitude,
-
-
-latitude
-
-
-]);
-
-
-
+        lastLongitude=longitude;
+        lastLatitude=latitude;
+    }
+    catch(error){
+        console.error("实时更新失败",error);
+        updateGpsStatus("暂时无法获取："+error.message);
+    }
 }
 
-
-
-
-
-
-const distance = calculateDistance(
-
-
-
-lastLongitude,
-
-
-lastLatitude,
-
-
-longitude,
-
-
-latitude
-
-
-
-);
-
-
-
-
-
-
-if(
-
-
-!historyMode
-
-
-&&
-
-
-distance>=RELOCATE_DISTANCE
-
-
-){
-
-
-
-map.setCenter([
-
-
-longitude,
-
-
-latitude
-
-
-]);
-
-
-
-}
-
-
-
-
-
-
-
-lastLongitude=longitude;
-
-
-lastLatitude=latitude;
-
-
-
-
-
-}
-
-catch(error){
-
-
-
-console.error(
-
-
-"实时更新失败",
-
-
-error
-
-
-);
-
-
-
-}
-
-
-
-}
-
-
-
-
-
-
-
-/*
-==================================================
-
-绘制历史轨迹
-
-
-输入：
-
-path数组
-
-
-格式：
-
-[
- [longitude,latitude],
- [longitude,latitude]
-]
-
-
-生成：
-
-1. 折线
-
-2. 起点
-
-3. 终点
-
-
-==================================================
-*/
-
-
-function drawTrack(path){
-
-
-
-historyPolyline=new AMap.Polyline({
-
-
-
-path:path,
-
-
-
-strokeColor:"#1677ff",
-
-
-
-strokeWeight:6,
-
-
-
-strokeOpacity:0.85,
-
-
-
-lineJoin:"round",
-
-
-
-lineCap:"round"
-
-
-
-});
-
-
-
-
-
-
-
-historyStartMarker=new AMap.Marker({
-
-
-
-position:path[0],
-
-
-
-content:startMarkerContent,
-
-
-
-anchor:"center"
-
-
-
-});
-
-
-
-
-
-
-
-historyEndMarker=new AMap.Marker({
-
-
-
-position:path[path.length-1],
-
-
-
-content:endMarkerContent,
-
-
-
-anchor:"center"
-
-
-
-});
-
-
-
-
-
-
-map.add([
-
-
-historyPolyline,
-
-
-historyStartMarker,
-
-
-historyEndMarker
-
-
-]);
-
-
-
-
-
-
-map.setFitView([
-
-
-
-historyPolyline,
-
-
-historyStartMarker,
-
-
-historyEndMarker
-
-
-
-]);
-
-
-
-}
- /*
-==================================================
-
-显示今日轨迹
-
-
-流程：
-
-1. 切换历史模式
-
-2. 隐藏实时Marker
-
-3. 请求今日轨迹
-
-4. 绘制轨迹
-
-
-对应接口：
-
-GET /locations/today
-
-
-==================================================
-*/
-
+/* =====================================================
+   今日轨迹
+
+   第一次点击：进入今日轨迹并显示整天轨迹。
+   第二次点击：直接返回实时定位。
+   ===================================================== */
 
 async function showTodayTrack(){
+    if(currentMode==="today"){
+        returnRealtime();
+        return;
+    }
 
+    try{
+        currentMode="today";
+        currentHistoryDate=null;
+        showHistoryPanel(false);
+        showTodayQueryPanel(true);
+        clearHistory();
+        updateModeStatus("今日轨迹");
 
-try{
+        const data=await getTodayTrack();
 
+        if(!data.locations || data.locations.length===0){
+            if(marker)marker.show();
+            alert("今日暂无GPS数据");
+            return;
+        }
 
-historyMode=true;
+        const path=data.locations.map(locationToMapPoint);
 
-
-
-if(marker){
-
-
-marker.hide();
-
-
+        drawTodayTrack(path);
+        console.log("今日轨迹加载完成",data.count);
+    }
+    catch(error){
+        console.error("今日轨迹失败",error);
+        alert("今日轨迹加载失败："+error.message);
+    }
 }
 
+/* =====================================================
+   今日具体时刻查询
 
+   默认今日轨迹已经显示；只有选择具体时间并点击查询，
+   才在轨迹上叠加橙色 Marker。
+   ===================================================== */
 
-clearHistory();
+async function queryTodayTime(){
+    const timeValue=document.getElementById("todayTime").value;
 
+    if(!timeValue){
+        clearQueryMarker();
+        return;
+    }
 
-
-
-
-const data = await getTodayTrack();
-
-
-
-
-
-
-if(
-
-!data.locations
-
-||
-
-data.locations.length<2
-
-){
-
-
-alert(
-
-"今日暂无GPS数据"
-
-);
-
-
-return;
-
-
+    await addQueryMarker(
+        getTodayDateString(),
+        normalizeTimeString(timeValue)
+    );
 }
 
-
-
-
-
-
-
-let path=data.locations.map(
-
-
-
-item=>[
-
-
-Number(item.longitude),
-
-
-Number(item.latitude)
-
-
-]
-
-
-
-);
-
-
-
-
-
-
-
-drawTrack(path);
-
-
-
-
-
-
-console.log(
-
-
-"今日轨迹加载完成",
-
-
-data.count
-
-
-);
-
-
-
-
-}
-
-catch(error){
-
-
-
-console.error(
-
-
-"今日轨迹失败",
-
-
-error
-
-
-);
-
-
-
-}
-
-
-}
-
-
-
-
-
-
-
-
-
-/*
-==================================================
-
-查询历史轨迹
-
-
-功能：
-
-
-1. 获取日期
-
-2. 查询历史数据
-
-3. 绘制轨迹
-
-4. 如果选择时间，则查询时间点
-
-
-对应接口：
-
-GET /locations/history/date
-
-
-==================================================
-*/
-
+/* =====================================================
+   历史轨迹
+   ===================================================== */
 
 async function queryHistory(){
+    try{
+        const date=getSelectedHistoryDate();
 
+        if(!date || date==="__custom__"){
+            alert("请选择有效的历史日期");
+            return;
+        }
 
+        currentMode="history";
+        currentHistoryDate=date;
+        showTodayQueryPanel(false);
+        showHistoryPanel(true);
+        clearHistory();
+        if(marker)marker.hide();
+        updateModeStatus("历史轨迹");
 
-try{
+        const data=await getHistoryByDate(date);
 
+        if(!data.locations || data.locations.length===0){
+            alert("该日期暂无GPS数据");
+            return;
+        }
 
+        // 每一个历史 GPS 点都先从 WGS84 转成 GCJ-02，
+        // 再交给高德 Polyline / Marker。
+        const path=data.locations.map(locationToMapPoint);
 
-historyMode=true;
+        drawHistoryTrack(path);
 
+        // 只有明确选择“具体时刻”时才叠加橙色查询 Marker。
+        const timeMode=document.getElementById("historyTimeMode").value;
+        const queryTime=document.getElementById("historyTime").value;
 
-
-
-if(marker){
-
-
-marker.hide();
-
-
+        if(timeMode==="time" && queryTime){
+            await addQueryMarker(
+                date,
+                normalizeTimeString(queryTime)
+            );
+        }
+    }
+    catch(error){
+        console.error("历史查询失败",error);
+        alert("历史轨迹查询失败："+error.message);
+    }
 }
 
+/* =====================================================
+   指定时间附近最近 GPS 点
 
+   后端负责按 gps_time 查前后5分钟的最近记录；
+   前端负责把该 WGS84 坐标转换后画到高德地图。
+   ===================================================== */
 
+async function addQueryMarker(date,time){
+    try{
+        const result=await getNearestLocation(
+            date,
+            normalizeTimeString(time)
+        );
 
-clearHistory();
+        if(!result.found){
+            clearQueryMarker();
+            alert(result.message || "该时间附近5分钟没有GPS记录");
+            return;
+        }
 
+        clearQueryMarker();
 
+        const mapPoint=convertWGS84ToGCJ02(
+            Number(result.longitude),
+            Number(result.latitude)
+        );
 
+        historyQueryMarker=new AMap.Marker({
+            position:mapPoint,
+            content:queryMarkerContent,
+            anchor:"center"
+        });
 
+        map.add(historyQueryMarker);
 
+        queryInfoWindow=new AMap.InfoWindow({
+            content:`
+                <div style="width:270px;font-size:14px;line-height:22px;">
+                    <b>查询时间（北京时间）:</b> ${result.query_time}<br>
+                    <b>GPS时间（北京时间）:</b> ${result.gps_time}<br>
+                    <b>相差:</b> ${result.difference_seconds} 秒<br>
+                    <b>GPS经度（WGS84）:</b> ${result.longitude}<br>
+                    <b>GPS纬度（WGS84）:</b> ${result.latitude}<br>
+                    <span style="color:#666;">地图显示位置已转换为 GCJ-02</span>
+                </div>
+            `,
+            offset:new AMap.Pixel(0,-35)
+        });
 
-let date=document.getElementById(
-
-
-"customDate"
-
-
-).value;
-
-
-
-
-
-if(!date){
-
-
-
-date=document.getElementById(
-
-
-"historyDateSelect"
-
-
-).value;
-
-
-
+        historyQueryMarker.on("click",function(){
+            queryInfoWindow.open(
+                map,
+                historyQueryMarker.getPosition()
+            );
+        });
+    }
+    catch(error){
+        console.error("时间查询失败",error);
+        alert("时间查询失败："+error.message);
+    }
 }
 
-
-
-
-
-
-currentHistoryDate=date;
-
-
-
-
-
-
-
-const data=await getHistoryByDate(date);
-
-
-
-
-
-
-
-
-if(
-
-!data.locations
-
-||
-
-data.locations.length<2
-
-){
-
-
-
-alert(
-
-
-"该日期暂无GPS数据"
-
-
-);
-
-
-
-return;
-
-
-}
-
-
-
-
-
-
-let path=data.locations.map(
-
-
-
-item=>[
-
-
-
-Number(item.longitude),
-
-
-
-Number(item.latitude)
-
-
-
-]
-
-
-
-);
-
-
-
-
-
-
-drawTrack(path);
-
-
-
-
-
-
-
-const queryTime=document.getElementById(
-
-
-"historyTime"
-
-
-).value;
-
-
-
-
-
-
-
-if(queryTime){
-
-
-
-await addQueryMarker(
-
-
-date,
-
-
-queryTime
-
-
-);
-
-
-
-}
-
-
-
-}
-
-catch(error){
-
-
-
-console.error(
-
-
-"历史查询失败",
-
-
-error
-
-
-);
-
-
-
-}
-
-
-
-}
-
-
-
-
-
-
-
-
-
-/*
-==================================================
-
-添加时间查询Marker
-
-
-功能：
-
-根据指定时间查询最近GPS点
-
-
-显示：
-
-橙色Marker
-
-点击显示详细信息
-
-
-对应接口：
-
-GET /locations/nearest
-
-
-==================================================
-*/
-
-
-async function addQueryMarker(
-
-
-date,
-
-
-time
-
-
-){
-
-
-
-const result=await getNearestLocation(
-
-
-date,
-
-
-time
-
-
-);
-
-
-
-
-
-
-if(!result.found){
-
-
-
-alert(
-
-
-"该时间附近5分钟没有GPS记录"
-
-
-);
-
-
-
-return;
-
-
-
-}
-
-
-
-
-
-
-const gps=result;
-
-
-
-
-
-
-
-historyQueryMarker=new AMap.Marker({
-
-
-
-position:[
-
-
-
-gps.longitude,
-
-
-
-gps.latitude
-
-
-
-],
-
-
-
-content:queryMarkerContent,
-
-
-
-anchor:"center"
-
-
-
-});
-
-
-
-
-
-
-map.add(historyQueryMarker);
-
-
-
-
-
-
-
-
-queryInfoWindow=new AMap.InfoWindow({
-
-
-
-content:
-
-
-
-`
-
-<div style="
-
-width:230px;
-
-font-size:14px;
-
-line-height:22px;
-
-">
-
-
-
-<b>查询时间:</b>
-
-${gps.query_time}
-
-<br>
-
-
-<b>GPS时间:</b>
-
-${gps.gps_time}
-
-<br>
-
-
-<b>时间差:</b>
-
-${gps.difference_seconds}
-
-秒
-
-<br>
-
-
-<b>经度:</b>
-
-${gps.longitude}
-
-<br>
-
-
-<b>纬度:</b>
-
-${gps.latitude}
-
-
-
-</div>
-
-`,
-
-
-
-offset:new AMap.Pixel(
-
-0,
-
--35
-
-)
-
-
-
-});
-
-
-
-
-
-
-
-
-
-historyQueryMarker.on(
-
-
-
-"click",
-
-
-
-function(){
-
-
-
-queryInfoWindow.open(
-
-
-map,
-
-
-historyQueryMarker.getPosition()
-
-
-
-);
-
-
-
-}
-
-
-
-);
-
-
-
-}
-
-
-
-
-
-
-
-
-
-/*
-==================================================
-
-返回实时定位模式
-
-
-功能：
-
-1. 清除轨迹
-
-2. 显示实时Marker
-
-3. 回到当前位置
-
-
-==================================================
-*/
-
+/* =====================================================
+   返回实时定位
+   ===================================================== */
 
 function returnRealtime(){
+    currentMode="realtime";
+    currentHistoryDate=null;
+    clearHistory();
+    showHistoryPanel(false);
+    showTodayQueryPanel(false);
+    updateModeStatus("实时定位");
 
+    document.getElementById("todayTime").value="";
+    document.getElementById("historyTime").value="";
+    document.getElementById("historyTimeMode").value="";
+    updateHistoryTimeVisibility();
 
+    if(marker)marker.show();
 
-historyMode=false;
-
-
-
-
-clearHistory();
-
-
-
-
-
-
-
-if(marker){
-
-
-marker.show();
-
-
+    if(
+        latestLongitude!==null &&
+        latestLatitude!==null &&
+        map
+    ){
+        map.setZoomAndCenter(
+            17,
+            convertWGS84ToGCJ02(
+                latestLongitude,
+                latestLatitude
+            )
+        );
+    }
 }
 
-
-
-
-
-
-
-if(
-
-
-latestLongitude!==null
-
-&&
-
-latestLatitude!==null
-
-
-){
-
-
-
-map.setZoomAndCenter(
-
-
-17,
-
-
-[
-
-
-latestLongitude,
-
-
-latestLatitude
-
-
-]
-
-
-);
-
-
-
-}
-
-
-
-}
-
-
-
-
-
-
-
-
-
-/*
-==================================================
-
-按钮事件绑定
-
-
-==================================================
-*/
-
-
-document.getElementById(
-
-
-"todayTrackButton"
-
-
-).onclick=showTodayTrack;
-
-
-
-
-
-
-document.getElementById(
-
-
-"historyButton"
-
-
-).onclick=function(){
-
-
-
-document.getElementById(
-
-
-"historyPanel"
-
-
-).style.display="block";
-
-
-
+/* =====================================================
+   按钮与输入事件
+   ===================================================== */
+
+document.getElementById("todayTrackButton").onclick=showTodayTrack;
+
+document.getElementById("historyButton").onclick=function(){
+    const panel=document.getElementById("historyPanel");
+
+    if(currentMode==="history" && panel.style.display==="block"){
+        // 第二次点击：退出历史轨迹，直接回实时定位。
+        returnRealtime();
+        return;
+    }
+
+    currentMode="history";
+    currentHistoryDate=null;
+    showTodayQueryPanel(false);
+    showHistoryPanel(true);
+    if(marker)marker.hide();
+    updateModeStatus("历史轨迹查询");
 };
 
+document.getElementById("historyDateSelect").addEventListener("change",function(){
+    updateCustomDateVisibility();
+});
 
+document.getElementById("historyTimeMode").addEventListener("change",function(){
+    updateHistoryTimeVisibility();
 
+    // 切回“不指定时间”后立即清除橙色查询 Marker，
+    // 恢复整天轨迹状态。
+    if(this.value!=="time"){
+        clearQueryMarker();
+    }
+});
 
-
-
-
-document.getElementById(
-
-
-"queryHistoryButton"
-
-
-).onclick=queryHistory;
-
-
-
-
-
-
-
-document.getElementById(
-
-
-"realtimeButton"
-
-
-).onclick=returnRealtime;
-
-
-
-
-
-
-
-
-
-
-
-/*
-==================================================
-
-页面启动入口
-
-
-浏览器加载完成后：
-
-初始化地图
-
-
-==================================================
-*/
-
+document.getElementById("queryHistoryButton").onclick=queryHistory;
+document.getElementById("queryTodayButton").onclick=queryTodayTime;
+document.getElementById("realtimeButton").onclick=returnRealtime;
 
 window.onload=function(){
-
-
-initMap();
-
-
+    initMap();
 };
-
-
-
 </script>
-
-
-
 </body>
-
-
-
 </html>
+
